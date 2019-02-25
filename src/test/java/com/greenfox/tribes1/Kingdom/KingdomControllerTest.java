@@ -57,37 +57,39 @@ public class KingdomControllerTest {
   private MediaType contentType = new MediaType(MediaType.APPLICATION_JSON.getType(),
           MediaType.APPLICATION_JSON.getSubtype(), Charset.forName("utf8"));
   private String username = "username";
+  private ApplicationUser testApplicationUser;
+  private String userEmail = "user@user.com";
+  private String kingdomName = "kingdomName";
+  private Long id = 1L;
   private Kingdom testKingdom;
   private KingdomDTO testKingdomDTO;
-  private String kingdom;
+  private String kingdomJson;
   private String mineJson;
   private String failedAuth;
 
   @Before
   public void init() throws JSONException {
-    String kingdomName = "kingdomName";
-    Long id = 1L;
-
     testTokenProvider = new TestTokenProvider(tokenFactory);
 
-    testKingdom = Kingdom.builder()
-            .id(id)
-            .name(kingdomName)
-            .build();
-
-    String userEmail = "user@user.com";
-    ApplicationUser testApplicationUser = ApplicationUser.builder()
+    testApplicationUser = ApplicationUser.builder()
             .id(id)
             .username(username)
             .userEmail(userEmail)
             .kingdom(testKingdom)
             .build();
 
-    testKingdom.setApplicationUser(testApplicationUser);
-    testKingdomDTO = new ModelMapper().map(testKingdom, KingdomDTO.class);
-    testKingdom.setBuildings(new ArrayList<>());
+    testKingdom = Kingdom.builder()
+            .id(id)
+            .name(kingdomName)
+            .applicationUser(testApplicationUser)
+            .buildings(new ArrayList<>())
+            .resources(new ArrayList<>())
+            .troops(new ArrayList<>())
+            .build();
 
-    kingdom = new JSONObject()
+    testKingdomDTO = new ModelMapper().map(testKingdom, KingdomDTO.class);
+
+    kingdomJson = new JSONObject()
             .put("id", 1)
             .put("kingdomName", kingdomName)
             .put("applicationUserName", username)
@@ -109,7 +111,7 @@ public class KingdomControllerTest {
   }
 
   @Test
-  public void getKingdom_throwsException_ifUserNotFound() throws Exception {
+  public void getKingdom_userNotFound_throwsException() throws Exception {
     token = testTokenProvider.createMockToken(username);
     when(kingdomService.getKindomFromAuth(Mockito.any(Authentication.class))).thenThrow(UsernameNotFoundException.class);
     mockMvc.perform(
@@ -119,14 +121,18 @@ public class KingdomControllerTest {
   }
 
   @Test
-  public void getKingdom_returnsOK_ifUserFound() throws Exception {
+  public void getKingdom_userFound_returnsOK() throws Exception {
     token = testTokenProvider.createMockToken(username);
+   // when(kingdomService.getKindomFromAuth(Mockito.any(Authentication.class))).thenReturn(testKingdom);
+
     mockMvc.perform(
             MockMvcRequestBuilders.get("/kingdom")
                     .header("Authorization", token))
             .andExpect(status().isOk());
   }
 
+
+  //refactor method names -> CLEAN CODE
   @Test
   public void getKingdom_returnsError_ifTokenNotProvided() throws Exception {
     mockMvc.perform(
@@ -145,7 +151,7 @@ public class KingdomControllerTest {
   }
 
   @Test
-  public void getKingdom_ReturnsKingdomDTO_StatusOK_HasCorrectMediaType_ServiceMethodsRunOnlyOnce() throws Exception {
+  public void getKingdom_ReturnsKingdomDTO_StatusOK_HasCorrectMediaType() throws Exception {
     token = testTokenProvider.createMockToken(username);
     when(kingdomService.createKingdomDTOFromKingdom(testKingdom)).thenReturn(testKingdomDTO);
     when(kingdomService.getKindomFromAuth(Mockito.any(Authentication.class))).thenReturn(testKingdom);
@@ -156,7 +162,7 @@ public class KingdomControllerTest {
     )
             .andExpect(status().isOk())
             .andExpect(content().contentType(contentType))
-            .andExpect(content().json(kingdom));
+            .andExpect(content().json(kingdomJson));
     verify(kingdomService, times(2)).getKindomFromAuth(Mockito.any(Authentication.class));
     verify(kingdomService, times(1)).createKingdomDTOFromKingdom(testKingdom);
     //verifyNoMoreInteractions(kingdomService);
